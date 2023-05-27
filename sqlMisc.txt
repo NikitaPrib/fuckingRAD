@@ -1,0 +1,142 @@
+drop table client cascade;
+drop table product cascade;
+drop table factura_info cascade;
+drop table factura cascade;
+CREATE TABLE IF NOT EXISTS client(
+	id SERIAL,
+	name CHARACTER VARYING(200) NOT NULL,
+	phone CHARACTER VARYING(15) NOT NULL,
+	adress CHARACTER VARYING(15) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS product(
+	id SERIAL,
+	name CHARACTER VARYING(200) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS factura_info(
+	id SERIAL,
+	product INTEGER NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (product) REFERENCES product (id)
+		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS factura(
+	id SERIAL,
+	client INTEGER NOT NULL,
+	f_info INTEGER NOT NULL,
+	date TIMESTAMP NOT NULL,
+	paid MONEY NOT NULL,
+	remains MONEY,
+	debtor BOOLEAN,
+	count INTEGER NOT NULL,
+	price MONEY NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (client) REFERENCES client (id)
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (f_info) REFERENCES product (id)
+		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+select * from client
+
+                "ID",
+                "Товар",
+                "Цена",
+                "количество",
+                "Оплата",
+                "Остаток",
+                "Дата покукпки",
+select f.id, p.name,f.price,f.count,f.paid,f.remains,f.debtor,f.date from factura f        
+                join product p on f.f_info = p.id 
+                join client c on f.client = c.id 
+                WHERE f.client =1; 
+				
+				select f.id, p.name,fi.price,f.count,f.paid,f.remains,f.debtor,f.date from factura f join factura_info fi on f.f_info = fi.id join product p on fi.product = p.idjoin client c on f.client = c.id WHERE f.client ='5'; 
+
+
+SELECT id FROM product WHERE name ='апельсин';
+SELECT id FROM factura_info WHERE product = (SELECT id FROM product WHERE name='апельсин');
+select * from factura_info;
+
+select * from trigget;
+drop table trigget cascade;
+CREATE TABLE trigget (
+status BOOLEAN
+);
+INSERT INTO trigget (status) VALUES ('false');
+	CREATE OR REPLACE FUNCTION upd_factura() RETURNS TRIGGER AS $$
+	BEGIN
+		IF false = (SELECT status FROM trigget) THEN
+			UPDATE trigget SET status = true;
+			IF TG_OP = 'INSERT' THEN
+				UPDATE factura SET remains = (SELECT (f.price * f.count - f.paid) FROM factura f
+				WHERE f.id = NEW.id)
+				WHERE id = NEW.id;
+				IF AGE(NOW(), NEW.date) > INTERVAL '180 days' AND NEW.remains > money(0) THEN
+				UPDATE factura SET debtor = true WHERE id =NEW.id;
+				END IF;
+			END IF;
+			IF TG_OP = 'UPDATE' THEN
+			UPDATE factura SET remains = (SELECT (f.price * f.count - f.paid) FROM factura f
+			WHERE f.id = OLD.id)
+			WHERE id = OLD.id;
+			IF AGE(NOW(), NEW.date) > INTERVAL '180 days' AND NEW.remains > money(0) THEN
+				UPDATE factura SET debtor = true WHERE id = OLD.id;
+
+			END IF;
+			END IF;
+			UPDATE trigget SET status = false;
+		END IF;
+	RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER upd_factura
+	AFTER INSERT OR UPDATE ON factura
+	FOR EACH ROW EXECUTE PROCEDURE upd_factura();
+
+INSERT INTO factura (client,f_info,price,count, date, paid, remains) VALUES ('1','1','43','212', '2022-7-1', '400', '8716');
+
+
+
+
+
+SELECT f.id, c.name, p.name, f.remains, f.paid FROM factura f
+	join product p on f.f_info = p.id
+	join client c on f.client = c.id;
+	WHERE debtor = true AND f.date >= '{startDate}' AND f.date <= '{endDate}'
+
+
+
+
+INSERT INTO factura (client,f_info,price,count, date, paid, remains) VALUES ('1','2','1234','2', '2023-5-26', '412', '2056');"
+SELECT client,f_info,price,count, date, paid, remains FROM factura
+
+
+
+SELECT fac.id, fac.name, p.name, fac.remains, fac.paid FROM
+        (SELECT f.id, f.f_info, f.remains, f.paid, c.name FROM factura f JOIN  
+         (SELECT * FROM client c1 WHERE {selNames}) c 
+         ON c.id = f.client WHERE debtor = true AND f.date >= '{startDate}' AND f.date <= '{endDate}') 
+         fac JOIN (SELECT f.id, f.price FROM factura_info fi 
+         JOIN product pr ON fac.f_info = pr.id);
+
+SELECT f.id, c.name, p.name, f.remains, f.paid, f.debtor FROM factura f
+join product p on f.f_info = p.id              
+join client c on f.client = c.id              
+WHERE f.date >= '2000-5-26' AND f.date <= '2023-5-26';
+
+
+ALTER TABLE factura
+ALTER COLUMN debtor SET DEFAULT FALSE;
+
+
+SELECT c.id, c.name, f.remains, f.paid FROM factura f 
+                         join client c on f.client = c.id  
+                         WHERE f.date >= '{26.05.2000}' AND f.date <= '{26.05.2023}'
+                         group by c.id ;
