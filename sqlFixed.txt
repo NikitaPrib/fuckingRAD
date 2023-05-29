@@ -1,9 +1,57 @@
+CREATE TABLE IF NOT EXISTS client(
+	id SERIAL,
+	name CHARACTER VARYING(200) NOT NULL,
+	phone CHARACTER VARYING(15) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS product(
+	id SERIAL,
+	name CHARACTER VARYING(200) NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS factura_info(
+	id SERIAL,
+	product INTEGER NOT NULL,
+	price MONEY NOT NULL,
+	nds MONEY NOT NULL	,
+	PRIMARY KEY (id),
+	FOREIGN KEY (product) REFERENCES product (id)
+		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS factura(
+	id SERIAL,
+	client INTEGER NOT NULL,
+	f_info INTEGER NOT NULL,
+	date TIMESTAMP NOT NULL,
+	paid MONEY NOT NULL,
+	remains MONEY,
+	debtor BOOLEAN,
+	PRIMARY KEY (id),
+	FOREIGN KEY (client) REFERENCES client (id)
+		ON DELETE CASCADE ON UPDATE CASCADE,
+	FOREIGN KEY (f_info) REFERENCES factura (id)
+		ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE flag_table (
+	status BOOLEAN
+);
+
+
+
+INSERT INTO flag_table (status) VALUES ('false');
+
 CREATE OR REPLACE FUNCTION upd_factura() RETURNS TRIGGER AS $$
 DECLARE
 new_value MONEY;
 BEGIN
-IF false = (SELECT status FROM trigget) AND TG_OP = 'UPDATE' THEN
-UPDATE trigget SET status = true;
+IF false = (SELECT status FROM flag_table) AND TG_OP = 'UPDATE' THEN
+UPDATE flag_table SET status = true;
 UPDATE factura SET remains = (SELECT (fi.price + fi.nds - f.paid) FROM factura f
 JOIN factura_info fi ON f.f_info = fi.id
 WHERE f.id = OLD.id)
@@ -12,23 +60,25 @@ WHERE id = OLD.id;
 IF AGE(NOW(), NEW.date) > INTERVAL '20 days' AND OLD.remains > money(0) THEN
 UPDATE factura SET debtor = true WHERE id = OLD.id;
 END IF;
-UPDATE trigget SET status = false;
+UPDATE flag_table SET status = false;
 END IF;
-IF false = (SELECT status FROM trigget) AND TG_OP = 'INSERT' THEN
-UPDATE trigget SET status = true;
-new.remains = (SELECT (fi.price + fi.nds) FROM factura_info fi
-WHERE fi.id = NEW.f_info) - NEW.paid;
+IF false = (SELECT status FROM flag_table) AND TG_OP = 'INSERT' THEN
+UPDATE flag_table SET status = true;
+update FACTURA set remains = (SELECT (fi.price + fi.nds) FROM factura_info fi
+WHERE fi.id = NEW.f_info) - NEW.paid
+WHERE id = new.id;
 new_value = (SELECT (fi.price + fi.nds) FROM factura_info fi
 WHERE fi.id = NEW.f_info) - NEW.paid;
 
 IF AGE(NOW(), NEW.date) > INTERVAL '20 days' AND new_value > money(0) THEN
 UPDATE factura SET debtor = true WHERE id = NEW.id;
 END IF;
-UPDATE trigget SET status = false;
+UPDATE flag_table SET status = false;
 END IF;
 RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
+
 CREATE OR REPLACE TRIGGER upd_factura
-	AFTER INSERT OR UPDATE ON factura
-	FOR EACH ROW EXECUTE PROCEDURE upd_factura();
+AFTER INSERT OR UPDATE ON factura
+FOR EACH ROW EXECUTE PROCEDURE upd_factura();
